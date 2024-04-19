@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "e2e-recsys"
+version = "0.1.0"
+description = ""
+authors = ["Selvin Selbaraju <selvinoselbaraju@gmail.com>"]
+readme = "README.md"
+packages = [{include = "e2e_recsys"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "^2.2.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
