@@ -9,6 +9,7 @@ packages = [{include = "e2e_recsys"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 torch = "^2.2.2"
+pandas = "^2.2.2"
 
 
 [build-system]
