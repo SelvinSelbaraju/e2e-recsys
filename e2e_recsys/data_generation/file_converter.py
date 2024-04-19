@@ -1,5 +1,4 @@
 import os
-import traceback
 from typing import List, Optional
 import pandas as pd
 import torch
@@ -28,24 +27,26 @@ class FileConverter:
         output_path = os.path.join(self.output_dir, output_filename)
         torch.save(self.row, output_path)
     
+    def _convert_row(self):
+        self._load_row()
+        self._save_row()
+        # Move to the next row
+        self.current_row_idx += 1
+    
     def convert_rows(self, max_row_idx: Optional[int] = None):
         if max_row_idx:
             for _ in range(max_row_idx):
                 try:
-                    self._load_row()
-                    self._save_row()
-                    # Move to the next row
-                    self.current_row_idx += 1
-                except Exception:
-                    traceback.print_exc()
+                    self._convert_row()
+                except StopIteration:
+                    print(f"Reached max idx of {self.current_row_idx}")
+                    break
+        else:
+            while True:
+                try:
+                    self._convert_row()
+                except StopIteration:
+                    print(f"Reached max idx of {self.current_row_idx}")
+                    break
 
-
-
-# converter = FileConverter(
-#     ["article_id", "prod_name"],
-#     "/Users/selvino/e2e-recsys/data/articles.csv",
-#     "converted_data",
-# )
-
-# # converter.convert_rows(2)
 
