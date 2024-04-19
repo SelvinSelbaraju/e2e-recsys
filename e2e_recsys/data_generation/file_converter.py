@@ -20,7 +20,10 @@ class FileConverter:
         os.makedirs(self.output_dir, exist_ok=True)
 
     def _load_row(self) -> pd.DataFrame:
-        self.row = next(self.data_loader).to_numpy()
+        row_dict = {}
+        for col in self.columns:
+            row_dict[col] = next(self.data_loader)[col].to_numpy()
+        self.row = row_dict
     
     def _save_row(self):
         output_filename = f"{self.output_file_prefix}_{self.current_row_idx}.{self.file_extension}"
