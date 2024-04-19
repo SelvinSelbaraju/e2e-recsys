@@ -27,10 +27,10 @@ def build_data(transactions: pd.DataFrame, articles: pd.DataFrame, customers: pd
 def save_data(data: pd.DataFrame, output_path: str):
     data.to_csv(output_path, index=False)
 
+def data_split():
+    train_data = build_data(transactions, articles, customers, TRAIN_DATES)
+    save_data(train_data, OUTPUT_TRAIN_PATH)
 
-train_data = build_data(transactions, articles, customers, TRAIN_DATES)
-save_data(train_data, OUTPUT_TRAIN_PATH)
-
-val_data = build_data(transactions, articles, customers, VAL_DATES)
-save_data(val_data, OUTPUT_VAL_PATH)
+    val_data = build_data(transactions, articles, customers, VAL_DATES)
+    save_data(val_data, OUTPUT_VAL_PATH)
 
