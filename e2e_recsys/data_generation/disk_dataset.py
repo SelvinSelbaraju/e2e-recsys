@@ -18,24 +18,3 @@ class DiskDataset(Dataset):
     def __getitem__(self, idx) -> torch.Tensor:
         return torch.load(self.files[idx])
 
-
-
-converter = FileConverter(
-    ["prod_name", "age"],
-    "purchased",
-    "/Users/selvino/e2e-recsys/data/val_data.csv",
-    "converted_data",
-)
-
-converter.convert_rows(10)
-    
-ds = DiskDataset(data_dir="/Users/selvino/e2e-recsys/converted_data")
-
-loader = DataLoader(ds, batch_size=5, num_workers=0)
-
-for i,batch in enumerate(loader):
-    print(batch)
-
-    if i > 0:
-        break
-
