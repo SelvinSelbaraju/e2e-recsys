@@ -12,7 +12,7 @@ class FileConverter:
     The first element is a dictionary of features, key=fname, value=fvalue
     The second element is the target
     """
-    def __init__(self, columns: List[str], target_col: str, input_filepath: str, output_dir: str, output_file_prefix: str = "data_row", file_extension: str = "pt"):
+    def __init__(self, columns: List[str], target_col: str, input_filepath: str, output_dir: str, output_file_prefix: str = "data_row", file_extension: str = "pt") -> None:
         self.columns = columns
         self.target_col = target_col
         self.input_filepath = input_filepath
