@@ -13,6 +13,7 @@ class FileConverter:
         self.file_extension = file_extension
 
         self.data_loader = pd.read_csv(self.input_filepath, usecols=self.columns + [self.target_col], chunksize=1)
+        self.row = None
         
         # Keep track of which row has been loaded 
         self.current_row_idx = 0
@@ -38,9 +39,9 @@ class FileConverter:
         # Move to the next row
         self.current_row_idx += 1
     
-    def convert_rows(self, max_row_idx: Optional[int] = None):
-        if max_row_idx:
-            for _ in range(max_row_idx):
+    def convert_rows(self, max_rows: Optional[int] = None):
+        if max_rows:
+            for _ in range(max_rows):
                 try:
                     self._convert_row()
                 except StopIteration:
