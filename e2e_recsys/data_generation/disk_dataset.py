@@ -10,6 +10,7 @@ class DiskDataset(Dataset):
     def __init__(self, data_dir: str, extension: str = "pt"):
         # Keep only files with the extension
         self.files = [os.path.join(data_dir, file) for file in os.listdir(data_dir) if file.endswith(extension)]
+        self.files.sort()
 
     def __len__(self) -> int:
         return len(self.files)
