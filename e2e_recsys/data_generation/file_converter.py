@@ -24,8 +24,8 @@ class FileConverter:
         row_dict = {}
         row_data =  next(self.data_loader)
         for col in self.columns:
-            row_dict[col] = row_data[col].to_numpy()
-        self.row = (row_dict, row_data[self.target_col].to_numpy())
+            row_dict[col] = row_data[col].to_numpy()[0]
+        self.row = (row_dict, row_data[self.target_col].to_numpy()[0])
     
     def _save_row(self):
         output_filename = f"{self.output_file_prefix}_{self.current_row_idx}.{self.file_extension}"
