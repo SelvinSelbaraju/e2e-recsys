@@ -4,14 +4,15 @@ import pandas as pd
 import torch
 
 class FileConverter:
-    def __init__(self, columns: List[str], input_filepath: str, output_dir: str, output_file_prefix: str = "data_row", file_extension: str = "pt"):
+    def __init__(self, columns: List[str], target_col: str, input_filepath: str, output_dir: str, output_file_prefix: str = "data_row", file_extension: str = "pt"):
         self.columns = columns
+        self.target_col = target_col
         self.input_filepath = input_filepath
         self.output_dir = output_dir
         self.output_file_prefix = output_file_prefix
         self.file_extension = file_extension
 
-        self.data_loader = pd.read_csv(self.input_filepath, usecols=self.columns, chunksize=1)
+        self.data_loader = pd.read_csv(self.input_filepath, usecols=self.columns + [self.target_col], chunksize=1)
         
         # Keep track of which row has been loaded 
         self.current_row_idx = 0
@@ -19,11 +20,12 @@ class FileConverter:
         # Make output dir if does not exist
         os.makedirs(self.output_dir, exist_ok=True)
 
-    def _load_row(self) -> pd.DataFrame:
+    def _load_row(self) -> None:
         row_dict = {}
+        row_data =  next(self.data_loader)
         for col in self.columns:
-            row_dict[col] = next(self.data_loader)[col].to_numpy()
-        self.row = row_dict
+            row_dict[col] = row_data[col].to_numpy()
+        self.row = (row_dict, row_data[self.target_col].to_numpy())
     
     def _save_row(self):
         output_filename = f"{self.output_file_prefix}_{self.current_row_idx}.{self.file_extension}"
