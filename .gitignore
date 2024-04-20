@@ -1,0 +1,6 @@
+# Data directories
+data/
+converted_data/
+
+# Misc
+*.pyc
