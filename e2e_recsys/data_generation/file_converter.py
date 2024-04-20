@@ -4,6 +4,14 @@ import pandas as pd
 import torch
 
 class FileConverter:
+    # FIXME: Can we save tensors with explicit type casting based on a schema?
+    """
+    This class is responsible for converting CSV data to serialised data
+    Each row of the CSV is converted to its own file, to enable easy batching
+    The serialized data is a tuple
+    The first element is a dictionary of features, key=fname, value=fvalue
+    The second element is the target
+    """
     def __init__(self, columns: List[str], target_col: str, input_filepath: str, output_dir: str, output_file_prefix: str = "data_row", file_extension: str = "pt"):
         self.columns = columns
         self.target_col = target_col
@@ -28,18 +36,18 @@ class FileConverter:
             row_dict[col] = row_data[col].to_numpy()[0]
         self.row = (row_dict, row_data[self.target_col].to_numpy()[0])
     
-    def _save_row(self):
+    def _save_row(self) -> None:
         output_filename = f"{self.output_file_prefix}_{self.current_row_idx}.{self.file_extension}"
         output_path = os.path.join(self.output_dir, output_filename)
         torch.save(self.row, output_path)
     
-    def _convert_row(self):
+    def _convert_row(self) -> None:
         self._load_row()
         self._save_row()
         # Move to the next row
         self.current_row_idx += 1
     
-    def convert_rows(self, max_rows: Optional[int] = None):
+    def convert_rows(self, max_rows: Optional[int] = None) -> None:
         if max_rows:
             for _ in range(max_rows):
                 try:
