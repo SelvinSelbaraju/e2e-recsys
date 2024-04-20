@@ -7,6 +7,7 @@ LOCAL_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 COLUMNS_TO_USE = ["cat1", "num2"]
 TARGET_COL = "target"
 
+
 @pytest.fixture
 def mock_data_path(tmpdir) -> str:
     data_path = os.path.join(LOCAL_DIRECTORY, "data", "mock_data.csv")
@@ -16,6 +17,7 @@ def mock_data_path(tmpdir) -> str:
     mock_df.to_csv(output_path, index=False)
 
     return output_path
+
 
 @pytest.fixture
 def mock_converted_data_dir(mock_data_path, tmpdir) -> str:
@@ -29,5 +31,3 @@ def mock_converted_data_dir(mock_data_path, tmpdir) -> str:
     )
     file_converter.convert_rows()
     return output_dir
-
-
