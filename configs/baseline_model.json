@@ -1,0 +1,15 @@
+{
+    "features": {
+        "categorical": [
+            "product_type_name",
+            "product_group_name",
+            "colour_group_name",
+            "department_name",
+            "club_member_status"
+        ],
+        "quantitative": [
+            "price",
+            "age"
+        ]
+    }
+}
