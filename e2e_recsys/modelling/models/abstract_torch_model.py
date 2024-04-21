@@ -10,6 +10,7 @@ class AbstractTorchModel(ABC, torch.nn.Module):
     def __init__(self, model_config: Dict):
         self.model_config = model_config
         self._init_functions()
+        self._init_layers()
 
     # Set activation functions and output layer transformation
     def _init_functions(self) -> None:
