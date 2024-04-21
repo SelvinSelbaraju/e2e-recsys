@@ -50,6 +50,7 @@ def test_csv_vocab_builder_build_to_vocab(mock_data_path):
     assert vb.vocab == {
         "cat1": {"a": 1, "b": 2, "c": 3},
         "num2": {"1": 1, "2": 2, "14": 3, "15": 4, "0": 5},
+        "<DEFAULT_VALUE>": 0,
     }
 
 
