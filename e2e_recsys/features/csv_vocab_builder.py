@@ -10,7 +10,7 @@ class CSVVocabBuilder:
     default_value = 0
     """
     Map categorical features to integers for Torch
-    Create from Dataframe and features
+    Create from Dataframe and features, assumes data fits in memory
     Ideally would be created from a data warehouse
 
     Output a JSON so works cross-lang
@@ -18,38 +18,22 @@ class CSVVocabBuilder:
     """
 
     # Init data loader here to prevent OOM issues
-    def __init__(self, features: Set[str], data_path: str):
+    def __init__(self, features: Set[str], data: pd.DataFrame):
         self.features = features
-        self.data_loader = pd.read_csv(
-            data_path, chunksize=1, usecols=features
-        )
+        self.data = data
         self.vocab = {}
-        # Keeps track of current index for each feature
-        self.feature_indices = {}
-
-        # Create empty vocab
-        for feature in features:
-            self.vocab[feature] = {}
-            # Index 0 maintained for oov items
-            self.feature_indices[feature] = 1
-
-    def _add_to_vocab(self, feature, value) -> None:
-        # For a specific feature, check if the value is in the vocab
-        if not self.vocab[feature].get(value, None):
-            # If not in vocab, get the current index to use
-            self.vocab[feature][value] = self.feature_indices[feature]
-            self.feature_indices[feature] += 1
 
     def build_vocab(self) -> Dict[str, Dict[str, int]]:
-        while True:
-            try:
-                chunk = next(self.data_loader)
-                for feature in chunk:
-                    value = chunk[feature].values[0]
-                    self._add_to_vocab(feature, value)
-            # Have reached the end of the data
-            except StopIteration:
-                break
+        for feature in self.features:
+            feature_vocab = {}
+            unique_vals = self.data[feature].unique()
+            current_idx = self.default_value + 1
+            for val in unique_vals:
+                # Add into vocab if not there
+                if not feature_vocab.get(val):
+                    feature_vocab[val] = current_idx
+                    current_idx += 1
+            self.vocab[feature] = feature_vocab
         self.vocab[self.default_key] = self.default_value
 
     def save_vocab(self, output_path: str) -> None:
