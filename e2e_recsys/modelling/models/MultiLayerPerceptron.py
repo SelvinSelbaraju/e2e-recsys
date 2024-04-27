@@ -4,9 +4,6 @@ from e2e_recsys.modelling.models.abstract_torch_model import AbstractTorchModel
 
 
 class MultiLayerPerceptron(AbstractTorchModel):
-    # Need to set this when initialising OHE layers
-    input_size = 1
-
     def _init_layers(self) -> None:
         self._init_hidden_layers()
 
@@ -32,12 +29,15 @@ class MultiLayerPerceptron(AbstractTorchModel):
             # -1 automatically infers the number of classes for OHE
             # Each elem is a (B, N, C) matrix, where C is the number of classes
             categorical_inputs.append(
-                torch.nn.functional.one_hot(x[categorical_feature], -1)
+                self._one_hot_encode_feature(
+                    x[categorical_feature],
+                    self.vocab_sizes[categorical_feature],
+                )
             )
 
-        numerical_inputs = torch.cat(numerical_inputs)
+        numerical_inputs = torch.cat(numerical_inputs, -1)
         categorical_inputs = torch.cat(categorical_inputs, -1)
-        return torch.cat(numerical_inputs, categorical_inputs, -1)
+        return torch.cat([numerical_inputs, categorical_inputs], -1)
 
     def forward(self, x: Dict[str, torch.Tensor]) -> torch.Tensor:
         x_input = self._preprocessing(x)
