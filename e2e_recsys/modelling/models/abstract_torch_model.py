@@ -43,5 +43,5 @@ class AbstractTorchModel(ABC, torch.nn.Module):
         pass
 
     @abstractmethod
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: Dict[str, torch.Tensor]) -> torch.Tensor:
         pass

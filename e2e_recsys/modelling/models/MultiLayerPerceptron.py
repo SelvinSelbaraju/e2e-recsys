@@ -1,3 +1,4 @@
+from typing import Dict
 import torch
 from e2e_recsys.modelling.models.abstract_torch_model import AbstractTorchModel
 
@@ -16,7 +17,7 @@ class MultiLayerPerceptron(AbstractTorchModel):
             self.hidden_layers.append(torch.nn.Linear(input_size, units))
             input_size = units
         # Append the output layer
-        self.hidden_layers.append(torch.nn.Linear(input_size, 1))
+        self.output_layer = torch.nn.Linear(input_size, 1)
 
     # FIXME: We should be able to support embeddings too
     def _preprocessing(self, x: torch.Dict[str, torch.Tensor]) -> torch.Tensor:
@@ -34,3 +35,10 @@ class MultiLayerPerceptron(AbstractTorchModel):
         numerical_inputs = torch.cat(numerical_inputs)
         categorical_inputs = torch.cat(categorical_inputs, -1)
         return torch.cat(numerical_inputs, categorical_inputs, -1)
+
+    def forward(self, x: Dict[str, torch.Tensor]) -> torch.Tensor:
+        x_input = self._preprocessing(x)
+        for layer in self.hidden_layers:
+            x_input = self.activation(layer(x_input))
+        x_output = self.output_layer(x_input)
+        return self.output_transform(x_output)
