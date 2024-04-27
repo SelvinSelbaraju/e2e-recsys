@@ -1,3 +1,4 @@
+import json
 import pytest
 import os
 import pandas as pd
@@ -31,3 +32,11 @@ def mock_converted_data_dir(mock_data_path, tmpdir) -> str:
     )
     file_converter.convert_rows()
     return output_dir
+
+
+@pytest.fixture
+def model_config() -> dict:
+    config_path = os.path.join(LOCAL_DIRECTORY, "configs", "test_model.json")
+    with open(config_path, "r") as f:
+        config = json.load(f)
+    return config

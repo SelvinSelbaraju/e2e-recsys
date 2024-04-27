@@ -7,6 +7,9 @@ class MultiLayerPerceptron(AbstractTorchModel):
     # Need to set this when initialising OHE layers
     input_size = 1
 
+    def _init_layers(self) -> None:
+        self._init_hidden_layers()
+
     def _init_hidden_layers(self):
         hidden_units = self.hyperparam_config["hidden_units"]
         self.hidden_layers = []
