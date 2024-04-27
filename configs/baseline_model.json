@@ -12,7 +12,7 @@
             "age"
         ]
     },
-    "hyperparam_config": {
+    "architecture_config": {
         "hidden_units": [4,2],
         "activation": "Relu",
         "output_transform": "Sigmoid"

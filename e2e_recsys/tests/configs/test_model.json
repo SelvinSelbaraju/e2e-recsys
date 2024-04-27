@@ -10,7 +10,7 @@
             "num3"
         ]
     },
-    "hyperparam_config": {
+    "architecture_config": {
         "hidden_units": [4,2],
         "activation": "ReLU",
         "output_transform": "Sigmoid"

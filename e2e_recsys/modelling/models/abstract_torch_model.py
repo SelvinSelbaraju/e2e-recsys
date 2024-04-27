@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Set
+from typing import Any, Dict, Set
 import importlib
 import torch
 from e2e_recsys.features.csv_vocab_builder import CSVVocabBuilder
@@ -11,14 +11,14 @@ class AbstractTorchModel(ABC, torch.nn.Module):
 
     def __init__(
         self,
-        hyperparam_config: Dict,
+        architecture_config: Dict[str, Any],
         numeric_feature_names: Set[str],
         categorical_feature_names: Set[str],
         vocab: Dict[str, Dict[str, int]],
     ):
         super().__init__()
 
-        self.hyperparam_config = hyperparam_config
+        self.architecture_config = architecture_config
         self.numeric_feature_names = sorted(numeric_feature_names)
         self.categorical_feature_names = sorted(categorical_feature_names)
 
@@ -35,11 +35,13 @@ class AbstractTorchModel(ABC, torch.nn.Module):
         module = importlib.import_module("torch.nn")
         self.activation = getattr(
             module,
-            self.hyperparam_config.get("activation", self.default_activation),
+            self.architecture_config.get(
+                "activation", self.default_activation
+            ),
         )()
         self.output_transform = getattr(
             module,
-            self.hyperparam_config.get(
+            self.architecture_config.get(
                 "output_transform", self.default_output_transform
             ),
         )()

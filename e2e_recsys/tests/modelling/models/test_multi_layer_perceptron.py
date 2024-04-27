@@ -11,7 +11,7 @@ def test_model(model_config, mock_vocab_path) -> MultiLayerPerceptron:
     with open(mock_vocab_path, "r") as f:
         vocab = json.load(f)
     model = MultiLayerPerceptron(
-        hyperparam_config=model_config["hyperparam_config"],
+        architecture_config=model_config["architecture_config"],
         numeric_feature_names=set(model_config["features"]["quantitative"]),
         categorical_feature_names=set(model_config["features"]["categorical"]),
         vocab=vocab,

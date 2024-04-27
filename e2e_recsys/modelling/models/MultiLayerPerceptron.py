@@ -8,7 +8,7 @@ class MultiLayerPerceptron(AbstractTorchModel):
         self._init_hidden_layers()
 
     def _init_hidden_layers(self):
-        hidden_units = self.hyperparam_config["hidden_units"]
+        hidden_units = self.architecture_config["hidden_units"]
         self.hidden_layers = []
         input_size = self.input_size
         for units in hidden_units:
