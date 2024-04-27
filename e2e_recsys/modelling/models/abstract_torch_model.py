@@ -12,9 +12,9 @@ class AbstractTorchModel(ABC, torch.nn.Module):
     def __init__(
         self,
         architecture_config: Dict[str, Any],
-        numeric_feature_names: Set[str],
-        categorical_feature_names: Set[str],
         vocab: Dict[str, Dict[str, int]],
+        numeric_feature_names: Set[str] = set([]),
+        categorical_feature_names: Set[str] = set([]),
     ):
         super().__init__()
 

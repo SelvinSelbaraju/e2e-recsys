@@ -14,7 +14,16 @@
     },
     "architecture_config": {
         "hidden_units": [4,2],
-        "activation": "Relu",
+        "activation": "ReLU",
         "output_transform": "Sigmoid"
+    },
+    "hyperparam_config": {
+        "train_batch_size": 2,
+        "validation_batch_size": 2,
+        "shuffle": false,
+        "optimizer": {
+            "type": "SGD"
+        },
+        "loss_function": "CrossEntropyLoss"
     }
 }
