@@ -38,11 +38,8 @@ class AbstractTorchModel(ABC, torch.nn.Module):
     def _init_layers(self) -> None:
         pass
 
-    # This should be called in _init_layers
-    # Categorical layers are assigned to integers during data preprocessing
-    # This is because PyTorch does not handle strings well
     @abstractmethod
-    def _init_categorical_layers(self) -> None:
+    def _preprocessing(self, x: Dict[str, torch.Tensor]) -> torch.Tensor:
         pass
 
     @abstractmethod
