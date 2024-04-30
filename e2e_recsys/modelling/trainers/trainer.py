@@ -3,7 +3,7 @@ from typing import Dict, Union
 import torch
 import importlib
 from e2e_recsys.data_generation.disk_dataset import DiskDataset
-from e2e_recsys.modelling.models.MultiLayerPerceptron import (
+from e2e_recsys.modelling.models.multi_layer_perceptron import (
     MultiLayerPerceptron,
 )
 from e2e_recsys.modelling.models.abstract_torch_model import AbstractTorchModel
@@ -78,8 +78,6 @@ class Trainer:
         )()
 
     def _train_one_epoch(self):
-        running_loss = 0.0
-
         # Here, we use enumerate(training_loader) instead of
         # iter(training_loader) so that we can track the batch
         # index and do some intra-epoch reporting
@@ -101,12 +99,10 @@ class Trainer:
             self.optimizer.step()
 
             # Gather data and report
-            running_loss += loss.item()
-            if i % 1000 == 999:
-                last_loss = running_loss / 1000  # loss per batch
-                print("  batch {} loss: {}".format(i + 1, last_loss))
+            if i % 1000 == 0:
+                print("  batch {} loss: {}".format(i + 1, loss))
 
-        return last_loss
+        return loss
 
 
 VOCAB_PATH = "/Users/selvino/e2e-recsys/vocab.json"
@@ -123,7 +119,7 @@ with open(VOCAB_PATH, "r") as f:
     vocab = json.load(f)
 model = MultiLayerPerceptron(
     architecture_config=architecture_config,
-    # numeric_feature_names=set(["price", "age"]),
+    numeric_feature_names=set(["price", "age"]),
     categorical_feature_names=set(
         [
             "product_type_name",

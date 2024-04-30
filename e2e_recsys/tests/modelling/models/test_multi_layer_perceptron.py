@@ -1,7 +1,7 @@
 import json
 import pytest
 import torch
-from e2e_recsys.modelling.models.MultiLayerPerceptron import (
+from e2e_recsys.modelling.models.multi_layer_perceptron import (
     MultiLayerPerceptron,
 )
 
@@ -39,7 +39,6 @@ def test_multi_layer_perceptron_init(test_model):
 
 
 def test_multi_layer_perceptron_preprocessing(test_model, test_data_dict):
-    print(test_model.categorical_feature_names)
     expected_output = torch.tensor(
         [
             [0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
@@ -60,9 +59,9 @@ def test_init_vocab_sizes(test_model):
 
 
 def test_one_hot_encode_feature(test_model):
-    test_data = torch.tensor([[1], [2], [1]], dtype=torch.int32)
+    test_data = torch.tensor([[1], [2], [1]], dtype=torch.float32)
     expected = torch.tensor(
-        [[0, 1, 0], [0, 0, 1], [0, 1, 0]], dtype=torch.int64
+        [[0, 1, 0], [0, 0, 1], [0, 1, 0]], dtype=torch.float32
     )
     vocab_size = 3
     result = test_model._one_hot_encode_feature(test_data, vocab_size)

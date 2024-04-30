@@ -48,11 +48,19 @@ class FileConverter:
         row_dict = {}
         row_data = next(self.data_loader)
         for col in self.columns:
-            row_dict[col] = row_data[col].to_numpy()[0]
-        # For binary classification, set target col to int8
+            # Reshape into 1D arrays
+            # The PyTorch Dataloader will batch these into 2D arrays
+            data = row_data[col].to_numpy(dtype=np.float32)[0]
+            target = row_data[self.target_col].to_numpy(dtype=np.float32)[0]
+            if np.isnan(data):
+                # FIXME: Don't just impute to zero
+                data = np.array([0], dtype=np.float32)
+            row_dict[col] = np.reshape(data, (1,))
+        # For binary classification, set target col to float32
+        # So can be used with loss function
         self.row = (
             row_dict,
-            row_data[self.target_col].to_numpy(dtype=np.int8)[0],
+            np.reshape(target, (1,)),
         )
 
     def _save_row(self) -> None:
@@ -81,3 +89,21 @@ class FileConverter:
                 except StopIteration:
                     print(f"Reached max idx of {self.current_row_idx}")
                     break
+
+
+fc = FileConverter(
+    columns=[
+        "product_type_name",
+        "product_group_name",
+        "colour_group_name",
+        "department_name",
+        "club_member_status",
+        "price",
+        "age",
+    ],
+    target_col="purchased",
+    input_filepath="/Users/selvino/e2e-recsys/data/train_data.csv",
+    output_dir="./converted_data",
+)
+
+fc.convert_rows(10000)

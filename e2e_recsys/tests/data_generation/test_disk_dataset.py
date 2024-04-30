@@ -1,4 +1,6 @@
 import os
+
+import numpy as np
 from e2e_recsys.data_generation.disk_dataset import DiskDataset
 
 
@@ -20,7 +22,41 @@ def test_disk_dataset_get_item(mock_converted_data_dir):
     ds = DiskDataset(mock_converted_data_dir)
 
     # Check first two items
-    expected_row_1 = ({"cat1": "a", "num2": 1.0}, 0)
-    expected_row_2 = ({"cat1": "b", "num2": 2.0}, 1)
-    assert ds[0] == expected_row_1
-    assert ds[1] == expected_row_2
+    expected_row_1 = (
+        {
+            "cat1": np.array(
+                [
+                    1.0,
+                ],
+                dtype=np.float32,
+            ),
+            "num2": np.array(
+                [
+                    1.0,
+                ],
+                dtype=np.float32,
+            ),
+        },
+        np.array([0.0], dtype=np.float32),
+    )
+    expected_row_2 = (
+        {
+            "cat1": np.array(
+                [
+                    2.0,
+                ],
+                dtype=np.float32,
+            ),
+            "num2": np.array(
+                [
+                    2.0,
+                ],
+                dtype=np.float32,
+            ),
+        },
+        np.array([1.0], dtype=np.float32),
+    )
+    np.testing.assert_equal(ds[0][0], expected_row_1[0])
+    np.testing.assert_equal(ds[0][1], expected_row_1[1])
+    np.testing.assert_equal(ds[1][0], expected_row_2[0])
+    np.testing.assert_equal(ds[1][1], expected_row_2[1])

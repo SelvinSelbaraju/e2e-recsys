@@ -63,7 +63,8 @@ class AbstractTorchModel(ABC, torch.nn.Module):
         result = torch.zeros(
             (categorical_feature.shape[0], vocab_size), dtype=torch.int64
         )
-        return result.scatter(1, categorical_feature.type(torch.int64), 1)
+        result = result.scatter(1, categorical_feature.type(torch.int64), 1)
+        return result.type(torch.float32)
 
     def _get_input_size(self) -> None:
         input_size = 0
