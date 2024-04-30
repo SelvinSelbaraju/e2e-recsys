@@ -18,8 +18,8 @@
         "output_transform": "Sigmoid"
     },
     "hyperparam_config": {
-        "train_batch_size": 2,
-        "validation_batch_size": 2,
+        "train_batch_size": 1000,
+        "validation_batch_size": 1000,
         "shuffle": false,
         "optimizer": {
             "type": "SGD"

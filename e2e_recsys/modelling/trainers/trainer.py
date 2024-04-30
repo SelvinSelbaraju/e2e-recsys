@@ -1,7 +1,8 @@
 import json
+from tqdm import tqdm
+import importlib
 from typing import Dict, Union
 import torch
-import importlib
 from e2e_recsys.data_generation.disk_dataset import DiskDataset
 from e2e_recsys.modelling.models.multi_layer_perceptron import (
     MultiLayerPerceptron,
@@ -32,13 +33,24 @@ class Trainer:
             self.hyperparam_config.get("shuffle", None),
         )
         self.validation_ds = self._create_data_loader(
-            train_data_dir,
+            validation_data_dir,
             self.hyperparam_config["validation_batch_size"],
             self.hyperparam_config.get("shuffle", None),
         )
 
     def train(self, epochs: int):
+        self.metrics_dict = {"train_loss": None, "val_loss": None}
         for i in range(epochs):
+            self._current_epoch = i + 1
+            self.train_data_progress = tqdm(
+                enumerate(self.train_ds),
+                unit="batch",
+                total=len(self.train_ds),
+            )
+            self.train_data_progress.set_description(
+                f"Epoch {self._current_epoch}"
+            )
+            self.train_data_progress.set_postfix(self.metrics_dict)
             self._train_one_epoch()
 
     def _init_configs(self, config_path):
@@ -81,7 +93,7 @@ class Trainer:
         # Here, we use enumerate(training_loader) instead of
         # iter(training_loader) so that we can track the batch
         # index and do some intra-epoch reporting
-        for i, data in enumerate(self.train_ds):
+        for i, data in self.train_data_progress:
             # Every data instance is an input + label pair
             inputs, labels = data
 
@@ -99,10 +111,23 @@ class Trainer:
             self.optimizer.step()
 
             # Gather data and report
-            if i % 1000 == 0:
-                print("  batch {} loss: {}".format(i + 1, loss))
+            self.metrics_dict["train_loss"] = loss.item()
+            self.train_data_progress.set_postfix(self.metrics_dict)
 
-        return loss
+        self.metrics_dict["val_loss"] = self._validate()
+
+    def _validate(self) -> float:
+        # Turn off dropout and switch batch norm mode
+        self.model.eval()
+        # Disable gradient computation and reduce memory consumption.
+        with torch.no_grad():
+            running_loss = 0.0
+            for i, data in enumerate(self.validation_ds):
+                inputs, labels = data
+                outputs = self.model(inputs)
+                loss = self.loss_function(outputs, labels)
+                running_loss += loss
+        return (running_loss / (i + 1)).item()
 
 
 VOCAB_PATH = "/Users/selvino/e2e-recsys/vocab.json"
@@ -140,4 +165,4 @@ trainer = Trainer(
     config_path=CONFIG_PATH,
 )
 
-trainer.train(1)
+trainer.train(2)
