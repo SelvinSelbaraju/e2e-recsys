@@ -4,3 +4,4 @@ converted_data/
 
 # Misc
 *.pyc
+events.out.tfevents.*

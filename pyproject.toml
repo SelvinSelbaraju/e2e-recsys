@@ -11,6 +11,7 @@ python = "^3.10"
 torch = "^2.2.2"
 pandas = "^2.2.2"
 tqdm = "^4.66.2"
+tensorboard = "^2.16.2"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -1,8 +1,9 @@
 import json
 from tqdm import tqdm
 import importlib
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 import torch
+from torch.utils.tensorboard import SummaryWriter
 from e2e_recsys.data_generation.disk_dataset import DiskDataset
 from e2e_recsys.modelling.models.multi_layer_perceptron import (
     MultiLayerPerceptron,
@@ -22,6 +23,7 @@ class Trainer:
         train_data_dir: str,
         validation_data_dir,
         config_path: str,
+        logs_dir: Optional[str] = "./runs/",
     ):
         self.model = model
         with open(vocab_path, "r") as f:
@@ -37,21 +39,7 @@ class Trainer:
             self.hyperparam_config["validation_batch_size"],
             self.hyperparam_config.get("shuffle", None),
         )
-
-    def train(self, epochs: int):
-        self.metrics_dict = {"train_loss": None, "val_loss": None}
-        for i in range(epochs):
-            self._current_epoch = i + 1
-            self.train_data_progress = tqdm(
-                enumerate(self.train_ds),
-                unit="batch",
-                total=len(self.train_ds),
-            )
-            self.train_data_progress.set_description(
-                f"Epoch {self._current_epoch}"
-            )
-            self.train_data_progress.set_postfix(self.metrics_dict)
-            self._train_one_epoch()
+        self.writer = SummaryWriter(log_dir=logs_dir)
 
     def _init_configs(self, config_path):
         with open(config_path, "r") as f:
@@ -89,11 +77,32 @@ class Trainer:
             importlib.import_module("torch.nn"), loss_function_name
         )()
 
+    def train(self, epochs: int):
+        self.metrics_dict = {"train_loss": [], "val_loss": []}
+        # Used for plotting metrics
+        self._current_batch = 0
+        for i in range(epochs):
+            self._current_epoch = i + 1
+            self.train_data_progress = tqdm(
+                enumerate(self.train_ds),
+                unit="batch",
+                total=len(self.train_ds),
+            )
+            self.train_data_progress.set_description(
+                f"Epoch {self._current_epoch}"
+            )
+            self.train_data_progress.set_postfix(self.metrics_dict)
+            self._train_one_epoch()
+        # Save events to disk and close logging for Tensorboard
+        self.writer.flush()
+        self.writer.close()
+
     def _train_one_epoch(self):
         # Here, we use enumerate(training_loader) instead of
         # iter(training_loader) so that we can track the batch
         # index and do some intra-epoch reporting
         for i, data in self.train_data_progress:
+            self._current_batch += 1
             # Every data instance is an input + label pair
             inputs, labels = data
 
@@ -111,10 +120,29 @@ class Trainer:
             self.optimizer.step()
 
             # Gather data and report
-            self.metrics_dict["train_loss"] = loss.item()
-            self.train_data_progress.set_postfix(self.metrics_dict)
+            self.metrics_dict["train_loss"].append(
+                (self._current_batch, loss.item())
+            )
+            self.train_data_progress.set_postfix(
+                {
+                    metric_name: metrics[-1][1] if len(metrics) > 0 else None
+                    for metric_name, metrics in self.metrics_dict.items()
+                }
+            )
 
-        self.metrics_dict["val_loss"] = self._validate()
+        self.writer.add_scalar(
+            tag="train_loss",
+            scalar_value=loss,
+            global_step=self._current_batch,
+        )
+        self.writer.add_scalar(
+            tag="val_loss",
+            scalar_value=self._validate(),
+            global_step=self._current_batch,
+        )
+        self.metrics_dict["val_loss"].append(
+            (self._current_batch, self._validate())
+        )
 
     def _validate(self) -> float:
         # Turn off dropout and switch batch norm mode
@@ -127,6 +155,8 @@ class Trainer:
                 outputs = self.model(inputs)
                 loss = self.loss_function(outputs, labels)
                 running_loss += loss
+        # Switch back to training mode
+        self.model.train(True)
         return (running_loss / (i + 1)).item()
 
 
