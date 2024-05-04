@@ -1,7 +1,7 @@
 import json
 from tqdm import tqdm
 import importlib
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union, Callable
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from e2e_recsys.data_generation.disk_dataset import DiskDataset
@@ -46,6 +46,10 @@ class Trainer:
             config = json.load(f)
         self.features = config["features"]
         self.hyperparam_config = config["hyperparam_config"]
+        self.training_config = config["training_config"]
+        self.metrics_functions = self._get_metrics(
+            self.training_config["metrics"]
+        )
         self.optimizer = self._get_optimizer(
             self.hyperparam_config["optimizer"]
         )
@@ -77,8 +81,20 @@ class Trainer:
             importlib.import_module("torch.nn"), loss_function_name
         )()
 
+    # Loss metrics are calculated by default
+    def _get_metrics(self, metrics: List[str]) -> Dict[str, Callable]:
+        self.metrics = metrics
+        return {
+            metric_name: getattr(
+                importlib.import_module("torcheval.metrics.functional"),
+                metric_name,
+            )
+            for metric_name in metrics
+        }
+
     def train(self, epochs: int):
-        self.metrics_dict = {"train_loss": [], "val_loss": []}
+        self.train_metrics = {}
+        self.val_metrics = {}
         # Used for plotting metrics
         self._current_batch = 0
         for i in range(epochs):
@@ -91,7 +107,6 @@ class Trainer:
             self.train_data_progress.set_description(
                 f"Epoch {self._current_epoch}"
             )
-            self.train_data_progress.set_postfix(self.metrics_dict)
             self._train_one_epoch()
         # Save events to disk and close logging for Tensorboard
         self.writer.flush()
@@ -101,6 +116,8 @@ class Trainer:
         # Here, we use enumerate(training_loader) instead of
         # iter(training_loader) so that we can track the batch
         # index and do some intra-epoch reporting
+        running_metrics = {metric_name: 0.0 for metric_name in self.metrics}
+        running_metrics["loss"] = 0.0
         for i, data in self.train_data_progress:
             self._current_batch += 1
             # Every data instance is an input + label pair
@@ -120,44 +137,65 @@ class Trainer:
             self.optimizer.step()
 
             # Gather data and report
-            self.metrics_dict["train_loss"].append(
-                (self._current_batch, loss.item())
-            )
+            running_loss = running_metrics["loss"] + loss.item()
+            running_metrics = {
+                metric_name: metric_func(
+                    torch.squeeze(outputs), torch.squeeze(labels)
+                ).item()
+                + running_metrics[metric_name]
+                for metric_name, metric_func in self.metrics_functions.items()
+            }
+            running_metrics["loss"] = running_loss
+            self.train_metrics = {
+                # squeeze as func API needs 1d tensors
+                metric_name: running_metric / (i + 1)
+                for metric_name, running_metric in running_metrics.items()
+            }
             self.train_data_progress.set_postfix(
-                {
-                    metric_name: metrics[-1][1] if len(metrics) > 0 else None
-                    for metric_name, metrics in self.metrics_dict.items()
-                }
+                {**self.train_metrics, **self.val_metrics}
+            )
+            self._log_to_tensorboard(self.train_metrics)
+        # Validate at the end of every epoch
+        self._validate()
+
+    def _log_to_tensorboard(self, metrics: Dict[str, float]) -> None:
+        for metric_name, metric_value in metrics.items():
+            self.writer.add_scalar(
+                tag=metric_name,
+                scalar_value=metric_value,
+                global_step=self._current_batch,
             )
 
-        self.writer.add_scalar(
-            tag="train_loss",
-            scalar_value=loss,
-            global_step=self._current_batch,
-        )
-        self.writer.add_scalar(
-            tag="val_loss",
-            scalar_value=self._validate(),
-            global_step=self._current_batch,
-        )
-        self.metrics_dict["val_loss"].append(
-            (self._current_batch, self._validate())
-        )
-
-    def _validate(self) -> float:
+    def _validate(self) -> None:
         # Turn off dropout and switch batch norm mode
         self.model.eval()
         # Disable gradient computation and reduce memory consumption.
+        running_metrics = {
+            f"val_{metric_name}": 0.0 for metric_name in self.metrics
+        }
+        running_metrics["val_loss"] = 0.0
         with torch.no_grad():
-            running_loss = 0.0
             for i, data in enumerate(self.validation_ds):
                 inputs, labels = data
                 outputs = self.model(inputs)
                 loss = self.loss_function(outputs, labels)
-                running_loss += loss
+                running_loss = running_metrics["val_loss"] + loss.item()
+                running_metrics = {
+                    f"val_{metric_name}": metric_func(
+                        torch.squeeze(outputs), torch.squeeze(labels)
+                    ).item()
+                    + running_metrics[f"val_{metric_name}"]
+                    for metric_name, metric_func in self.metrics_functions.items()
+                }
+                running_metrics["val_loss"] = running_loss
+                self.val_metrics = {
+                    # squeeze as func API needs 1d tensors
+                    metric_name: running_metric / (i + 1)
+                    for metric_name, running_metric in running_metrics.items()
+                }
         # Switch back to training mode
         self.model.train(True)
-        return (running_loss / (i + 1)).item()
+        self._log_to_tensorboard(self.val_metrics)
 
 
 VOCAB_PATH = "/Users/selvino/e2e-recsys/vocab.json"
@@ -195,4 +233,4 @@ trainer = Trainer(
     config_path=CONFIG_PATH,
 )
 
-trainer.train(2)
+trainer.train(10)
