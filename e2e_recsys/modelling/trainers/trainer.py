@@ -146,14 +146,14 @@ class Trainer:
         return outputs, labels, loss.item()
 
     def _train_one_epoch(self):
-        for epoch_batch, batch in self.train_progress:
+        for _, batch in self.train_progress:
             self._global_batch += 1
             outputs, labels, loss = self._train_one_batch(batch)
 
             # Gather data and report
             with torch.no_grad():
                 self.train_metrics.update_metric_state(outputs, labels, loss)
-                self.train_metrics.compute_metric_state(epoch_batch + 1)
+                self.train_metrics.compute_metric_state()
             self.train_progress.set_postfix(
                 {
                     **self.train_metrics.metrics["recent"],
@@ -171,12 +171,12 @@ class Trainer:
         self.model.eval()
         # Disable gradient computation and reduce memory consumption.
         with torch.no_grad():
-            for i, data in enumerate(self.validation_ds):
+            for _, data in enumerate(self.validation_ds):
                 inputs, labels = data
                 outputs = self.model(inputs)
                 loss = self.loss_function(outputs, labels).item()
                 self.val_metrics.update_metric_state(outputs, labels, loss)
-                self.val_metrics.compute_metric_state(i + 1)
+                self.val_metrics.compute_metric_state()
         # Switch back to training mode
         self.model.train(True)
         self.train_progress.set_postfix(
