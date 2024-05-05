@@ -24,10 +24,15 @@ class Trainer:
         train_data_dir: str,
         val_data_dir,
         config_path: str,
-        logs_dir: Optional[str] = "./runs/",
+        logs_dir: str = "./runs/",
+        # How often to reset the training metrics state during an epoch
+        # Eg if 1, only use the metrics for the current batch
+        # If None, never reset during an epoch
+        reset_metric_freq: Optional[int] = None,
     ):
         self.model = model
         self.writer = SummaryWriter(log_dir=logs_dir)
+        self.reset_metric_freq = reset_metric_freq
         with open(vocab_path, "r") as f:
             self.vocab = json.load(f)
         self._init_configs(config_path)
@@ -146,23 +151,36 @@ class Trainer:
         return outputs, labels, loss.item()
 
     def _train_one_epoch(self):
-        for _, batch in self.train_progress:
+        # Step num is zero indexed
+        for step_num, batch in self.train_progress:
             self._global_batch += 1
             outputs, labels, loss = self._train_one_batch(batch)
 
             # Gather data and report
             with torch.no_grad():
                 self.train_metrics.update_metric_state(outputs, labels, loss)
-                self.train_metrics.compute_metric_state()
-            self.train_progress.set_postfix(
-                {
-                    **self.train_metrics.metrics["recent"],
-                    **self.val_metrics.metrics["recent"],
-                }
-            )
-            self.train_metrics.log_to_tensorboard(self._global_batch)
-            self.train_metrics.reset_metric_state()
-        # Validate at the end of every epoch
+                if (
+                    not self.reset_metric_freq
+                    or (
+                        self.reset_metric_freq
+                        and (step_num + 1) % self.reset_metric_freq == 0
+                    )
+                    or (step_num + 1) == len(self.train_ds)
+                ):
+                    self.train_metrics.compute_metric_state()
+                    self.train_metrics.log_to_tensorboard(self._global_batch)
+                    # Check if at the reset interval or the last batch
+                    if (step_num + 1) % self.reset_metric_freq == 0 or (
+                        step_num + 1
+                    ) == len(self.train_ds):
+                        self.train_metrics.reset_metric_state()
+                self.train_progress.set_postfix(
+                    {
+                        **self.train_metrics.metrics["recent"],
+                        **self.val_metrics.metrics["recent"],
+                    }
+                )
+        # Compute train and val metrics at end of epoch
         self._validate()
 
     def _validate(self) -> None:
@@ -176,7 +194,7 @@ class Trainer:
                 outputs = self.model(inputs)
                 loss = self.loss_function(outputs, labels).item()
                 self.val_metrics.update_metric_state(outputs, labels, loss)
-                self.val_metrics.compute_metric_state()
+            self.val_metrics.compute_metric_state()
         # Switch back to training mode
         self.model.train(True)
         self.train_progress.set_postfix(
