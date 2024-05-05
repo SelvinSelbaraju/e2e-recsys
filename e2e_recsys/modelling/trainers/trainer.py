@@ -1,7 +1,7 @@
 import json
 from tqdm import tqdm
 import importlib
-from typing import Dict, List, Optional, Tuple, Union, Callable
+from typing import Dict, Optional, Tuple, Union, Callable
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from e2e_recsys.data_generation.disk_dataset import DiskDataset
@@ -73,6 +73,8 @@ class Trainer:
             self.hyperparam_config["validation_batch_size"],
             self.hyperparam_config.get("shuffle", False),
         )
+
+    def _reset_progress_bar(self) -> None:
         # Init a training progress bar
         self.train_progress = tqdm(
             enumerate(self.train_ds),
@@ -97,14 +99,14 @@ class Trainer:
 
     # Loss metrics are always calculated within the training loop
     # Therefore are excluded here
-    def _get_metrics(self, metrics: List[str]) -> Dict[str, Callable]:
-        self.metrics = metrics
+    def _get_metrics(self, metrics: Dict[str, str]) -> Dict[str, Callable]:
+        self.metrics = metrics.values()
         return {
-            metric_name: getattr(
+            metric_alias: getattr(
                 importlib.import_module("torcheval.metrics.functional"),
                 metric_name,
             )
-            for metric_name in metrics
+            for metric_name, metric_alias in metrics.items()
         }
 
     # Return the metrics state dictionary
@@ -224,6 +226,8 @@ class Trainer:
         # Used for plotting metrics
         self._global_batch = 0
         for i in range(epochs):
+            # Reset the progress bar to iterate over the data
+            self._reset_progress_bar()
             self._current_epoch = i + 1
             self.train_progress.set_description(f"Epoch {self._current_epoch}")
             self._train_one_epoch()

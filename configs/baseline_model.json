@@ -27,9 +27,9 @@
         "loss_function": "BCELoss"
     },
     "training_config": {
-        "metrics": [
-            "binary_accuracy",
-            "binary_auroc"
-        ]
+        "metrics": {
+            "binary_accuracy": "acc",
+            "binary_auroc": "auc"
+        }
     }
 }
