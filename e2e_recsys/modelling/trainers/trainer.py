@@ -9,6 +9,7 @@ from e2e_recsys.modelling.models.multi_layer_perceptron import (
     MultiLayerPerceptron,
 )
 from e2e_recsys.modelling.models.abstract_torch_model import AbstractTorchModel
+from e2e_recsys.modelling.utils.metric_store import MetricsStore
 
 
 class Trainer:
@@ -26,12 +27,12 @@ class Trainer:
         logs_dir: Optional[str] = "./runs/",
     ):
         self.model = model
+        self.writer = SummaryWriter(log_dir=logs_dir)
         with open(vocab_path, "r") as f:
             self.vocab = json.load(f)
         self._init_configs(config_path)
         self._init_data_loaders(train_data_dir, val_data_dir)
         self._init_metrics_state()
-        self.writer = SummaryWriter(log_dir=logs_dir)
 
     def _init_configs(self, config_path):
         with open(config_path, "r") as f:
@@ -111,66 +112,23 @@ class Trainer:
 
     # Return the metrics state dictionary
     # The structure is used for running and recent metric states
-    def _get_metrics_state(self) -> Dict[str, Dict[str, float]]:
-        metrics = {
-            metric_type: {metric_name: 0.0 for metric_name in self.metrics}
-            for metric_type in ["train", "val"]
-        }
-        for metric_type in ["train", "val"]:
-            metrics[metric_type]["loss"] = 0.0
+    def _get_metrics_state(
+        self, prefix: str = ""
+    ) -> Dict[str, Dict[str, float]]:
+        metrics = {}
+        for metric_type in ["running", "recent"]:
+            metrics[metric_type] = {
+                f"{prefix}{metric_name}": 0.0 for metric_name in self.metrics
+            }
+            metrics[metric_type][f"{prefix}loss"] = 0.0
         return metrics
 
     # Initialise metrics state
     def _init_metrics_state(self) -> None:
-        self.running_metrics = self._get_metrics_state()
-        self.recent_metrics = self._get_metrics_state()
-
-    # Calculate metrics for output / labels and add to existing state
-    # Class-based TorchEval metrics accumulate data, not metric values
-    # This is not suitable for disk-based training
-    # Instead, we accumulate loss metrics on a running basis, and average them
-    def _update_metric_state(
-        self,
-        outputs: torch.Tensor,
-        labels: torch.Tensor,
-        loss: float,
-        metric_type: str,
-    ) -> None:
-        self.running_metrics[metric_type]["loss"] += loss
-        for metric_name, metric_func in self.metrics_functions.items():
-            self.running_metrics[metric_type][metric_name] += metric_func(
-                torch.squeeze(outputs), torch.squeeze(labels)
-            ).item()
-
-    # Divide the running metric state by the num batches
-    # Use this to update the recent metrics
-    def _compute_metric_state(
-        self, metric_type: str, num_batches: int
-    ) -> None:
-        for metric_name in self.metrics_functions.keys():
-            self.recent_metrics[metric_type][metric_name] = (
-                self.running_metrics[metric_type][metric_name] / (num_batches)
-            )
-        self.recent_metrics[metric_type]["loss"] = self.running_metrics[
-            metric_type
-        ]["loss"] / (num_batches)
-
-    def _reset_metric_state(self, metric_type: str) -> None:
-        for metric_name in self.metrics_functions.keys():
-            self.running_metrics[metric_type][metric_name] = 0.0
-            self.recent_metrics[metric_type][metric_name] = 0.0
-        self.recent_metrics[metric_type]["loss"] = 0.0
-        self.running_metrics[metric_type]["loss"] = 0.0
-
-    def _log_to_tensorboard(self, metric_type: str) -> None:
-        for metric_name, metric_value in self.recent_metrics[
-            metric_type
-        ].items():
-            self.writer.add_scalar(
-                tag=metric_name,
-                scalar_value=metric_value,
-                global_step=self._global_batch,
-            )
+        self.train_metrics = MetricsStore(self.metrics_functions, self.writer)
+        self.val_metrics = MetricsStore(
+            self.metrics_functions, self.writer, prefix="val_"
+        )
 
     def _train_one_batch(
         self, data: Tuple[Dict[str, torch.Tensor], torch.Tensor]
@@ -188,24 +146,27 @@ class Trainer:
         return outputs, labels, loss.item()
 
     def _train_one_epoch(self):
-        epoch_batch = 0
-        for i, batch in self.train_progress:
-            epoch_batch += 1
+        for epoch_batch, batch in self.train_progress:
             self._global_batch += 1
             outputs, labels, loss = self._train_one_batch(batch)
 
             # Gather data and report
             with torch.no_grad():
-                self._update_metric_state(outputs, labels, loss, "train")
-                self._compute_metric_state("train", epoch_batch)
-            self.train_progress.set_postfix({**self.recent_metrics["train"]})
-            self._log_to_tensorboard("train")
+                self.train_metrics.update_metric_state(outputs, labels, loss)
+                self.train_metrics.compute_metric_state(epoch_batch + 1)
+            self.train_progress.set_postfix(
+                {
+                    **self.train_metrics.metrics["recent"],
+                    **self.val_metrics.metrics["recent"],
+                }
+            )
+            self.train_metrics.log_to_tensorboard(self._global_batch)
+            self.train_metrics.reset_metric_state()
         # Validate at the end of every epoch
         self._validate()
-        self._reset_metric_state("train")
-        self._reset_metric_state("val")
 
     def _validate(self) -> None:
+        self.val_metrics.reset_metric_state()
         # Turn off dropout and switch batch norm mode
         self.model.eval()
         # Disable gradient computation and reduce memory consumption.
@@ -214,15 +175,19 @@ class Trainer:
                 inputs, labels = data
                 outputs = self.model(inputs)
                 loss = self.loss_function(outputs, labels).item()
-                self._update_metric_state(outputs, labels, loss, "val")
-                self._compute_metric_state("val", i + 1)
+                self.val_metrics.update_metric_state(outputs, labels, loss)
+                self.val_metrics.compute_metric_state(i + 1)
         # Switch back to training mode
         self.model.train(True)
-        self._log_to_tensorboard("val")
+        self.train_progress.set_postfix(
+            {
+                **self.train_metrics.metrics["recent"],
+                **self.val_metrics.metrics["recent"],
+            }
+        )
+        self.val_metrics.log_to_tensorboard(self._global_batch)
 
     def train(self, epochs: int):
-        self.train_metrics = {}
-        self.val_metrics = {}
         # Used for plotting metrics
         self._global_batch = 0
         for i in range(epochs):
