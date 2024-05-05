@@ -24,6 +24,7 @@ class Trainer:
         train_data_dir: str,
         val_data_dir,
         config_path: str,
+        model_output_path: str,
         logs_dir: str = "./runs/",
         # How often to reset the training metrics state during an epoch
         # Eg if 1, only use the metrics for the current batch
@@ -31,6 +32,7 @@ class Trainer:
         reset_metric_freq: Optional[int] = None,
     ):
         self.model = model
+        self.model_output_path = model_output_path
         self.writer = SummaryWriter(log_dir=logs_dir)
         self.reset_metric_freq = reset_metric_freq
         with open(vocab_path, "r") as f:
@@ -170,9 +172,10 @@ class Trainer:
                     self.train_metrics.compute_metric_state()
                     self.train_metrics.log_to_tensorboard(self._global_batch)
                     # Check if at the reset interval or the last batch
-                    if (step_num + 1) % self.reset_metric_freq == 0 or (
-                        step_num + 1
-                    ) == len(self.train_ds):
+                    if self.reset_metric_freq and (
+                        (step_num + 1) % self.reset_metric_freq == 0
+                        or (step_num + 1) == len(self.train_ds)
+                    ):
                         self.train_metrics.reset_metric_state()
                 self.train_progress.set_postfix(
                     {
@@ -209,7 +212,7 @@ class Trainer:
         # Used for plotting metrics
         self._global_batch = 0
         for i in range(epochs):
-            # Reset the progress bar to iterate over the data
+            # Reset the progress bar each epoch to iterate over the data
             self._reset_progress_bar()
             self._current_epoch = i + 1
             self.train_progress.set_description(f"Epoch {self._current_epoch}")
@@ -217,12 +220,14 @@ class Trainer:
         # Save events to disk and close logging for Tensorboard
         self.writer.flush()
         self.writer.close()
+        torch.save(self.model, self.model_output_path)
 
 
 VOCAB_PATH = "/Users/selvino/e2e-recsys/vocab.json"
 TRAIN_DATA_DIR = "/Users/selvino/e2e-recsys/converted_data"
 VAL_DATA_DIR = "/Users/selvino/e2e-recsys/converted_data"
 CONFIG_PATH = "/Users/selvino/e2e-recsys/configs/baseline_model.json"
+MODEL_OUTPUT_PATH = "/Users/selvino/e2e-recsys/trained_models/model.pt"
 
 architecture_config = {
     "hidden_units": [4, 2],
@@ -252,6 +257,7 @@ trainer = Trainer(
     train_data_dir=TRAIN_DATA_DIR,
     val_data_dir=VAL_DATA_DIR,
     config_path=CONFIG_PATH,
+    model_output_path=MODEL_OUTPUT_PATH,
 )
 
 trainer.train(2)

@@ -16,6 +16,7 @@ class MultiLayerPerceptron(AbstractTorchModel):
             # Then that number of units is the input for the next layer
             self.hidden_layers.append(torch.nn.Linear(input_size, units))
             input_size = units
+        self.hidden_layers = torch.nn.ModuleList(self.hidden_layers)
         # Append the output layer
         self.output_layer = torch.nn.Linear(input_size, 1)
 
