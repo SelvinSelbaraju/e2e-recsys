@@ -91,7 +91,7 @@ class FileConverter:
                     break
 
 
-fc = FileConverter(
+train_fc = FileConverter(
     columns=[
         "product_type_name",
         "product_group_name",
@@ -103,7 +103,24 @@ fc = FileConverter(
     ],
     target_col="purchased",
     input_filepath="/Users/selvino/e2e-recsys/data/train_data.csv",
-    output_dir="./converted_data",
+    output_dir="./converted_train_data",
 )
 
-fc.convert_rows(10000)
+train_fc.convert_rows()
+
+val_fc = FileConverter(
+    columns=[
+        "product_type_name",
+        "product_group_name",
+        "colour_group_name",
+        "department_name",
+        "club_member_status",
+        "price",
+        "age",
+    ],
+    target_col="purchased",
+    input_filepath="/Users/selvino/e2e-recsys/data/val_data.csv",
+    output_dir="./converted_val_data",
+)
+
+val_fc.convert_rows()

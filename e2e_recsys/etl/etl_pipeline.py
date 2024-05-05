@@ -71,8 +71,10 @@ if categorical_features:
     vb = CSVVocabBuilder(categorical_features, train_data)
     vb.build_vocab()
     vb.save_vocab(OUTPUT_VOCAB_PATH)
-    print("Preprocessing data using training vocab")
-    train_data = preprocess_data(OUTPUT_VOCAB_PATH, train_data)
-    val_data = preprocess_data(OUTPUT_VOCAB_PATH, val_data)
+    print("Preprocessing data using training vocab and shuffling rows")
+    train_data = preprocess_data(OUTPUT_VOCAB_PATH, train_data).sample(
+        frac=1.0
+    )
+    val_data = preprocess_data(OUTPUT_VOCAB_PATH, val_data).sample(frac=1.0)
     save_data(train_data, OUTPUT_TRAIN_PATH)
     save_data(val_data, OUTPUT_VAL_PATH)
