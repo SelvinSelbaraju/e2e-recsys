@@ -1,5 +1,6 @@
 import os
 from typing import List, Optional
+import numpy as np
 import pandas as pd
 import torch
 
@@ -47,8 +48,20 @@ class FileConverter:
         row_dict = {}
         row_data = next(self.data_loader)
         for col in self.columns:
-            row_dict[col] = row_data[col].to_numpy()[0]
-        self.row = (row_dict, row_data[self.target_col].to_numpy()[0])
+            # Reshape into 1D arrays
+            # The PyTorch Dataloader will batch these into 2D arrays
+            data = row_data[col].to_numpy(dtype=np.float32)[0]
+            target = row_data[self.target_col].to_numpy(dtype=np.float32)[0]
+            if np.isnan(data):
+                # FIXME: Don't just impute to zero
+                data = np.array([0], dtype=np.float32)
+            row_dict[col] = np.reshape(data, (1,))
+        # For binary classification, set target col to float32
+        # So can be used with loss function
+        self.row = (
+            row_dict,
+            np.reshape(target, (1,)),
+        )
 
     def _save_row(self) -> None:
         output_filename = f"{self.output_file_prefix}_{self.current_row_idx}.{self.file_extension}"  # noqa: E501
@@ -76,3 +89,38 @@ class FileConverter:
                 except StopIteration:
                     print(f"Reached max idx of {self.current_row_idx}")
                     break
+
+
+train_fc = FileConverter(
+    columns=[
+        "product_type_name",
+        "product_group_name",
+        "colour_group_name",
+        "department_name",
+        "club_member_status",
+        "price",
+        "age",
+    ],
+    target_col="purchased",
+    input_filepath="/Users/selvino/e2e-recsys/data/train_data.csv",
+    output_dir="./converted_train_data",
+)
+
+train_fc.convert_rows()
+
+val_fc = FileConverter(
+    columns=[
+        "product_type_name",
+        "product_group_name",
+        "colour_group_name",
+        "department_name",
+        "club_member_status",
+        "price",
+        "age",
+    ],
+    target_col="purchased",
+    input_filepath="/Users/selvino/e2e-recsys/data/val_data.csv",
+    output_dir="./converted_val_data",
+)
+
+val_fc.convert_rows()

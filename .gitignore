@@ -1,6 +1,8 @@
 # Data directories
 data/
 converted_data/
+*.pt
 
 # Misc
 *.pyc
+events.out.tfevents.*

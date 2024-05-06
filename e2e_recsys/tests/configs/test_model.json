@@ -1,0 +1,18 @@
+{
+    "features": {
+        "categorical": [
+            "cat1",
+            "cat2"
+        ],
+        "quantitative": [
+            "num1",
+            "num2",
+            "num3"
+        ]
+    },
+    "architecture_config": {
+        "hidden_units": [4,2],
+        "activation": "ReLU",
+        "output_transform": "Sigmoid"
+    }
+}

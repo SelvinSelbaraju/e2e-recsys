@@ -10,6 +10,9 @@ packages = [{include = "e2e_recsys"}]
 python = "^3.10"
 torch = "^2.2.2"
 pandas = "^2.2.2"
+tqdm = "^4.66.2"
+tensorboard = "^2.16.2"
+torcheval = "^0.0.7"
 
 
 [tool.poetry.group.dev.dependencies]

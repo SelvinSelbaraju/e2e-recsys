@@ -1,0 +1,35 @@
+{
+    "features": {
+        "categorical": [
+            "product_type_name",
+            "product_group_name",
+            "colour_group_name",
+            "department_name",
+            "club_member_status"
+        ],
+        "quantitative": [
+            "price",
+            "age"
+        ]
+    },
+    "architecture_config": {
+        "hidden_units": [4,2],
+        "activation": "ReLU",
+        "output_transform": "Sigmoid"
+    },
+    "hyperparam_config": {
+        "train_batch_size": 1000,
+        "validation_batch_size": 1000,
+        "shuffle": false,
+        "optimizer": {
+            "type": "SGD"
+        },
+        "loss_function": "BCELoss"
+    },
+    "training_config": {
+        "metrics": {
+            "binary_accuracy": "acc",
+            "binary_auroc": "auc"
+        }
+    }
+}
