@@ -52,6 +52,7 @@ class Trainer:
     def _init_configs(self, config_path):
         with open(config_path, "r") as f:
             config = json.load(f)
+        logger.info(f"Initialising configs using {config}")
         # Update attributes using config
         self.__dict__.update(config)
         # Update specific attributes explicitly
@@ -68,7 +69,7 @@ class Trainer:
     def _create_data_loader(
         self, data_dir: str, batch_size: int, shuffle: bool = False
     ) -> torch.utils.data.DataLoader:
-        ds = DiskDataset(data_dir, max_files=10000)
+        ds = DiskDataset(data_dir, max_files=100000)
         loader = torch.utils.data.DataLoader(
             ds, batch_size=batch_size, shuffle=shuffle
         )
@@ -79,6 +80,7 @@ class Trainer:
         train_data_dir: str,
         val_data_dir: str,
     ) -> None:
+        logger.info("Initialising train and val data loaders")
         self.train_ds = self._create_data_loader(
             train_data_dir,
             self.hyperparam_config["train_batch_size"],
@@ -89,6 +91,7 @@ class Trainer:
             self.hyperparam_config["validation_batch_size"],
             self.hyperparam_config.get("shuffle", False),
         )
+        logger.info("Finished train and val data loaders")
 
     def _reset_progress_bar(self) -> None:
         # Init a training progress bar
@@ -125,21 +128,9 @@ class Trainer:
             for metric_name, metric_alias in metrics.items()
         }
 
-    # Return the metrics state dictionary
-    # The structure is used for running and recent metric states
-    def _get_metrics_state(
-        self, prefix: str = ""
-    ) -> Dict[str, Dict[str, float]]:
-        metrics = {}
-        for metric_type in ["running", "recent"]:
-            metrics[metric_type] = {
-                f"{prefix}{metric_name}": 0.0 for metric_name in self.metrics
-            }
-            metrics[metric_type][f"{prefix}loss"] = 0.0
-        return metrics
-
     # Initialise metrics state
     def _init_metrics_state(self) -> None:
+        logger.info("Initialising train and val metrics stores")
         self.train_metrics = MetricsStore(self.metrics_functions, self.writer)
         self.val_metrics = MetricsStore(
             self.metrics_functions, self.writer, prefix="val_"
@@ -195,6 +186,7 @@ class Trainer:
         self._validate()
 
     def _validate(self) -> None:
+        logger.info(f"Validating at the end of epoch {self._current_epoch}")
         self.val_metrics.reset_metric_state()
         # Turn off dropout and switch batch norm mode
         self.model.eval()
@@ -215,8 +207,12 @@ class Trainer:
             }
         )
         self.val_metrics.log_to_tensorboard(self._global_batch)
+        logger.info(
+            f"Finished validating at the end of epoch {self._current_epoch}"
+        )
 
     def train(self, epochs: int):
+        logger.info("Beginning model training")
         # Used for plotting metrics
         self._global_batch = 0
         for i in range(epochs):
