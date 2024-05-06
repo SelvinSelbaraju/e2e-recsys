@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 import torch
 from torch.utils.data.dataset import Dataset
 
@@ -12,14 +12,20 @@ class DiskDataset(Dataset):
     PyTorch DataLoader handles optimal batching, shuffling, parallelisation etc
     """
 
-    def __init__(self, data_dir: str, extension: str = "pt") -> None:
+    def __init__(
+        self,
+        data_dir: str,
+        extension: str = "pt",
+        max_files: Optional[int] = None,
+    ) -> None:
         # Keep only files with the extension
         self.files = [
             os.path.join(data_dir, file)
             for file in os.listdir(data_dir)
             if file.endswith(extension)
         ]
-        self.files.sort()
+        if max_files:
+            self.files = self.files[: min(len(self.files), max_files)]
 
     # Used by the PyTorch DataLoader class
     # Helps it understand the max index

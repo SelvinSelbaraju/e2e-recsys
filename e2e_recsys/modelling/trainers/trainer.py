@@ -1,3 +1,5 @@
+import logging
+import os
 import json
 from tqdm import tqdm
 import importlib
@@ -10,6 +12,11 @@ from e2e_recsys.modelling.models.multi_layer_perceptron import (
 )
 from e2e_recsys.modelling.models.abstract_torch_model import AbstractTorchModel
 from e2e_recsys.modelling.utils.metric_store import MetricsStore
+
+FORMAT = "%(name)s::%(levelname)s::%(asctime)s::%(message)s"
+logging.basicConfig(level=logging.INFO, format=FORMAT)
+
+logger = logging.getLogger(__name__)
 
 
 class Trainer:
@@ -33,7 +40,8 @@ class Trainer:
     ):
         self.model = model
         self.model_output_path = model_output_path
-        self.writer = SummaryWriter(log_dir=logs_dir)
+        self.logs_dir = logs_dir
+        self.writer = SummaryWriter(log_dir=self.logs_dir)
         self.reset_metric_freq = reset_metric_freq
         with open(vocab_path, "r") as f:
             self.vocab = json.load(f)
@@ -60,7 +68,7 @@ class Trainer:
     def _create_data_loader(
         self, data_dir: str, batch_size: int, shuffle: bool = False
     ) -> torch.utils.data.DataLoader:
-        ds = DiskDataset(data_dir)
+        ds = DiskDataset(data_dir, max_files=10000)
         loader = torch.utils.data.DataLoader(
             ds, batch_size=batch_size, shuffle=shuffle
         )
@@ -220,12 +228,14 @@ class Trainer:
         # Save events to disk and close logging for Tensorboard
         self.writer.flush()
         self.writer.close()
+        logger.info(f"Saving model to: {self.model_output_path}")
+        os.makedirs(os.path.dirname(self.model_output_path), exist_ok=True)
         torch.save(self.model, self.model_output_path)
 
 
 VOCAB_PATH = "/Users/selvino/e2e-recsys/vocab.json"
-TRAIN_DATA_DIR = "/Users/selvino/e2e-recsys/converted_data"
-VAL_DATA_DIR = "/Users/selvino/e2e-recsys/converted_data"
+TRAIN_DATA_DIR = "/Users/selvino/e2e-recsys-data/converted_train_data"
+VAL_DATA_DIR = "/Users/selvino/e2e-recsys-data/converted_val_data"
 CONFIG_PATH = "/Users/selvino/e2e-recsys/configs/baseline_model.json"
 MODEL_OUTPUT_PATH = "/Users/selvino/e2e-recsys/trained_models/model.pt"
 
