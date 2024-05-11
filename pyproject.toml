@@ -13,6 +13,7 @@ pandas = "^2.2.2"
 tqdm = "^4.66.2"
 tensorboard = "^2.16.2"
 torcheval = "^0.0.7"
+onnxscript = "^0.1.0.dev20240511"
 
 
 [tool.poetry.group.dev.dependencies]

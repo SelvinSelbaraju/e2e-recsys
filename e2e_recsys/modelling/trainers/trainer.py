@@ -24,6 +24,9 @@ class Trainer:
     Class for training a model from data and configs
     """
 
+    # This is the filename default for Nvidia Triton
+    model_output_file = "model.onnx"
+
     def __init__(
         self,
         model: AbstractTorchModel,
@@ -31,7 +34,7 @@ class Trainer:
         train_data_dir: str,
         val_data_dir,
         config_path: str,
-        model_output_path: str,
+        model_output_dir: str,
         logs_dir: str = "./runs/",
         # How often to reset the training metrics state during an epoch
         # Eg if 1, only use the metrics for the current batch
@@ -39,7 +42,9 @@ class Trainer:
         reset_metric_freq: Optional[int] = None,
     ):
         self.model = model
-        self.model_output_path = model_output_path
+        self.model_output_path = os.path.join(
+            model_output_dir, self.model_output_file
+        )
         self.logs_dir = logs_dir
         self.writer = SummaryWriter(log_dir=self.logs_dir)
         self.reset_metric_freq = reset_metric_freq
@@ -80,7 +85,7 @@ class Trainer:
         train_data_dir: str,
         val_data_dir: str,
     ) -> None:
-        logger.info("Initialising train and val data loaders")
+        logger.info("Initialising train, val and dummy data loaders")
         self.train_ds = self._create_data_loader(
             train_data_dir,
             self.hyperparam_config["train_batch_size"],
@@ -91,7 +96,13 @@ class Trainer:
             self.hyperparam_config["validation_batch_size"],
             self.hyperparam_config.get("shuffle", False),
         )
-        logger.info("Finished train and val data loaders")
+        # Dummy ds is used to load a batch for tracing the graph
+        # Allows us to save to model in ONNX format
+        self.dummy_ds = self._create_data_loader(
+            train_data_dir,
+            10,
+        )
+        logger.info("Finished train, val and dummy data loaders")
 
     def _reset_progress_bar(self) -> None:
         # Init a training progress bar
@@ -140,9 +151,10 @@ class Trainer:
         self, data: Tuple[Dict[str, torch.Tensor], torch.Tensor]
     ) -> Tuple[torch.Tensor, torch.Tensor, float]:
         inputs, labels = data
-        # Zero your gradients for every batch!
+        # Zero your gradients for every batch
         self.optimizer.zero_grad()
-        outputs = self.model(inputs)
+        # Wrap inputs in a list to match ONNX Exporter
+        outputs = self.model([inputs])
         # Compute the loss and its gradients
         loss = self.loss_function(outputs, labels)
         loss.backward()
@@ -194,7 +206,8 @@ class Trainer:
         with torch.no_grad():
             for _, data in enumerate(self.validation_ds):
                 inputs, labels = data
-                outputs = self.model(inputs)
+                # Wrap inputs in a list to match ONNX Exporter
+                outputs = self.model([inputs])
                 loss = self.loss_function(outputs, labels).item()
                 self.val_metrics.update_metric_state(outputs, labels, loss)
             self.val_metrics.compute_metric_state()
@@ -224,16 +237,31 @@ class Trainer:
         # Save events to disk and close logging for Tensorboard
         self.writer.flush()
         self.writer.close()
+        # Save the trained model in ONNX format to disk
+        self._save_model()
+        logger.info("Finished model training")
+
+    def _save_model(self) -> None:
         logger.info(f"Saving model to: {self.model_output_path}")
         os.makedirs(os.path.dirname(self.model_output_path), exist_ok=True)
-        torch.save(self.model, self.model_output_path)
+        dummy_input = next(iter(self.dummy_ds))
+        input_names = ["input"]
+        output_names = ["output"]
+        torch.onnx.export(
+            self.model,
+            dummy_input,
+            self.model_output_path,
+            verbose=True,
+            input_names=input_names,
+            output_names=output_names,
+        )
 
 
 VOCAB_PATH = "/Users/selvino/e2e-recsys/vocab.json"
 TRAIN_DATA_DIR = "/Users/selvino/e2e-recsys-data/converted_train_data"
 VAL_DATA_DIR = "/Users/selvino/e2e-recsys-data/converted_val_data"
 CONFIG_PATH = "/Users/selvino/e2e-recsys/configs/baseline_model.json"
-MODEL_OUTPUT_PATH = "/Users/selvino/e2e-recsys/trained_models/model.pt"
+MODEL_OUTPUT_DIR = "/Users/selvino/e2e-recsys/trained_models"
 
 architecture_config = {
     "hidden_units": [4, 2],
@@ -263,7 +291,7 @@ trainer = Trainer(
     train_data_dir=TRAIN_DATA_DIR,
     val_data_dir=VAL_DATA_DIR,
     config_path=CONFIG_PATH,
-    model_output_path=MODEL_OUTPUT_PATH,
+    model_output_dir=MODEL_OUTPUT_DIR,
 )
 
 trainer.train(2)
