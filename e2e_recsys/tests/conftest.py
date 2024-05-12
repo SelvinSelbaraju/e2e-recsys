@@ -61,10 +61,14 @@ def mock_vocab_path(tmpdir, mock_data_path):
     return output_path
 
 
+@pytest.fixture()
+def model_config_path() -> str:
+    return os.path.join(LOCAL_DIRECTORY, "configs", "test_model.json")
+
+
 @pytest.fixture
-def model_config() -> Dict[str, Dict[str, int]]:
-    config_path = os.path.join(LOCAL_DIRECTORY, "configs", "test_model.json")
-    with open(config_path, "r") as f:
+def model_config(model_config_path) -> Dict[str, Dict[str, int]]:
+    with open(model_config_path, "r") as f:
         config = json.load(f)
     return config
 

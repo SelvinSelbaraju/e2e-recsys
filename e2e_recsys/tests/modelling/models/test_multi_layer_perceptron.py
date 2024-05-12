@@ -1,4 +1,3 @@
-import json
 import pytest
 import torch
 from e2e_recsys.modelling.models.multi_layer_perceptron import (
@@ -7,14 +6,9 @@ from e2e_recsys.modelling.models.multi_layer_perceptron import (
 
 
 @pytest.fixture
-def test_model(model_config, mock_vocab_path) -> MultiLayerPerceptron:
-    with open(mock_vocab_path, "r") as f:
-        vocab = json.load(f)
-    model = MultiLayerPerceptron(
-        architecture_config=model_config["architecture_config"],
-        numeric_feature_names=set(model_config["features"]["quantitative"]),
-        categorical_feature_names=set(model_config["features"]["categorical"]),
-        vocab=vocab,
+def test_model(model_config_path, mock_vocab_path) -> MultiLayerPerceptron:
+    model = MultiLayerPerceptron.get_from_paths(
+        config_path=model_config_path, vocab_path=mock_vocab_path
     )
     return model
 
@@ -29,6 +23,7 @@ def test_multi_layer_perceptron_init(test_model):
     assert isinstance(test_model.activation, torch.nn.ReLU)
     assert isinstance(test_model.output_transform, torch.nn.Sigmoid)
     # Check the features
+    assert test_model.target_col == "target"
     assert test_model.numeric_feature_names == ["num1", "num2", "num3"]
     assert test_model.categorical_feature_names == ["cat1", "cat2"]
     # Check the vocab sizes

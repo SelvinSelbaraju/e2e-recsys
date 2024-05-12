@@ -1,5 +1,6 @@
-from typing import Dict, List
+from typing import Dict
 import torch
+from e2e_recsys.utils.io import load_json
 from e2e_recsys.modelling.models.abstract_torch_model import AbstractTorchModel
 
 
@@ -42,11 +43,23 @@ class MultiLayerPerceptron(AbstractTorchModel):
             categorical_inputs = torch.cat(categorical_inputs, -1)
         return torch.cat([numerical_inputs, categorical_inputs], -1)
 
-    def forward(self, x: List[Dict[str, torch.Tensor]]) -> torch.Tensor:
-        # The ONNX Format converts dict input to a one element list
-        # Key lookup fails unless we take that zero index
-        # This list logic is replicated in the training loop
-        x_input = self._preprocessing(x[0])
+    @classmethod
+    def get_from_paths(
+        cls, config_path: str, vocab_path: str
+    ) -> "MultiLayerPerceptron":
+        config = load_json(config_path)
+        vocab = load_json(vocab_path)
+
+        return MultiLayerPerceptron(
+            architecture_config=config["architecture_config"],
+            vocab=vocab,
+            target_col=config["features"]["target_col"],
+            numeric_feature_names=config["features"]["quantitative"],
+            categorical_feature_names=config["features"]["categorical"],
+        )
+
+    def forward(self, x: Dict[str, torch.Tensor]) -> torch.Tensor:
+        x_input = self._preprocessing(x)
         for layer in self.hidden_layers:
             x_input = self.activation(layer(x_input))
         x_output = self.output_layer(x_input)

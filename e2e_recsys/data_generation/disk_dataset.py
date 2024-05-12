@@ -26,6 +26,7 @@ class DiskDataset(Dataset):
         ]
         if max_files:
             self.files = self.files[: min(len(self.files), max_files)]
+        self.files = sorted(self.files)
 
     # Used by the PyTorch DataLoader class
     # Helps it understand the max index

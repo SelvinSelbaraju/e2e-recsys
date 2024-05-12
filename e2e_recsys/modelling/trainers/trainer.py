@@ -3,7 +3,7 @@ import os
 import json
 from tqdm import tqdm
 import importlib
-from typing import Dict, Optional, Tuple, Union, Callable
+from typing import Dict, List, Optional, Tuple, Union, Callable
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from e2e_recsys.data_generation.disk_dataset import DiskDataset
@@ -60,6 +60,7 @@ class Trainer:
         logger.info(f"Initialising configs using {config}")
         # Update attributes using config
         self.__dict__.update(config)
+        self.epochs = self.training_config.get("epochs", 1)
         # Update specific attributes explicitly
         self.metrics_functions = self._get_metrics(
             self.training_config["metrics"]
@@ -100,7 +101,7 @@ class Trainer:
         # Allows us to save to model in ONNX format
         self.dummy_ds = self._create_data_loader(
             train_data_dir,
-            10,
+            2,
         )
         logger.info("Finished train, val and dummy data loaders")
 
@@ -153,8 +154,7 @@ class Trainer:
         inputs, labels = data
         # Zero your gradients for every batch
         self.optimizer.zero_grad()
-        # Wrap inputs in a list to match ONNX Exporter
-        outputs = self.model([inputs])
+        outputs = self.model(inputs)
         # Compute the loss and its gradients
         loss = self.loss_function(outputs, labels)
         loss.backward()
@@ -206,8 +206,7 @@ class Trainer:
         with torch.no_grad():
             for _, data in enumerate(self.validation_ds):
                 inputs, labels = data
-                # Wrap inputs in a list to match ONNX Exporter
-                outputs = self.model([inputs])
+                outputs = self.model(inputs)
                 loss = self.loss_function(outputs, labels).item()
                 self.val_metrics.update_metric_state(outputs, labels, loss)
             self.val_metrics.compute_metric_state()
@@ -224,11 +223,11 @@ class Trainer:
             f"Finished validating at the end of epoch {self._current_epoch}"
         )
 
-    def train(self, epochs: int):
-        logger.info("Beginning model training")
+    def train(self):
+        logger.info(f"Beginning model training for {self.epochs}")
         # Used for plotting metrics
         self._global_batch = 0
-        for i in range(epochs):
+        for i in range(self.epochs):
             # Reset the progress bar each epoch to iterate over the data
             self._reset_progress_bar()
             self._current_epoch = i + 1
@@ -244,54 +243,58 @@ class Trainer:
     def _save_model(self) -> None:
         logger.info(f"Saving model to: {self.model_output_path}")
         os.makedirs(os.path.dirname(self.model_output_path), exist_ok=True)
-        dummy_input = next(iter(self.dummy_ds))
-        input_names = ["input"]
-        output_names = ["output"]
         torch.onnx.export(
             self.model,
-            dummy_input,
+            self._get_onnx_dummy_input(),
             self.model_output_path,
+            input_names=self.model.all_features,
+            # Outputs must be a list
+            output_names=[self.model.target_col],
+            dynamic_axes=self._get_onnx_dynamic_axes(),
             verbose=True,
-            input_names=input_names,
-            output_names=output_names,
         )
 
+    def _get_onnx_dummy_input(
+        self,
+    ) -> Tuple[Dict[str, Dict[str, torch.Tensor]]]:
+        """
+        Generate dummy input to trace the model graph
+        """
+        dummy_input = {"x": next(iter(self.dummy_ds))[0]}
+        logger.info(f"ONNX Dummy input: {dummy_input}")
+        return dummy_input
 
-VOCAB_PATH = "/Users/selvino/e2e-recsys/vocab.json"
-TRAIN_DATA_DIR = "/Users/selvino/e2e-recsys-data/converted_train_data"
-VAL_DATA_DIR = "/Users/selvino/e2e-recsys-data/converted_val_data"
-CONFIG_PATH = "/Users/selvino/e2e-recsys/configs/baseline_model.json"
-MODEL_OUTPUT_DIR = "/Users/selvino/e2e-recsys/trained_models"
+    def _get_onnx_dynamic_axes(self) -> Dict[str, List[int]]:
+        """
+        Dict of which axes are dynamic for which inputs/outputs
+        Only allow first dim (batch size) to be dynamic
+        Not a sequencem model, can have other dynamic dims
+        """
+        dynamic_axes = {
+            feature_name: [0] for feature_name in self.model.all_features
+        }
+        # Output batch size is also dynamic
+        dynamic_axes[self.model.target_col] = [0]
+        logger.info(f"ONNX Dynamic axes: {dynamic_axes}")
+        return dynamic_axes
 
-architecture_config = {
-    "hidden_units": [4, 2],
-    "activation": "ReLU",
-    "output_transform": "Sigmoid",
-}
-with open(VOCAB_PATH, "r") as f:
-    vocab = json.load(f)
-model = MultiLayerPerceptron(
-    architecture_config=architecture_config,
-    numeric_feature_names=set(["price", "age"]),
-    categorical_feature_names=set(
-        [
-            "product_type_name",
-            "product_group_name",
-            "colour_group_name",
-            "department_name",
-            "club_member_status",
-        ]
-    ),
-    vocab=vocab,
-)
 
-trainer = Trainer(
-    model,
-    VOCAB_PATH,
-    train_data_dir=TRAIN_DATA_DIR,
-    val_data_dir=VAL_DATA_DIR,
-    config_path=CONFIG_PATH,
-    model_output_dir=MODEL_OUTPUT_DIR,
-)
+if __name__ == "__main__":
+    VOCAB_PATH = "/Users/selvino/e2e-recsys/vocab.json"
+    TRAIN_DATA_DIR = "/Users/selvino/e2e-recsys/test-data"
+    VAL_DATA_DIR = "/Users/selvino/e2e-recsys/test-data"
+    CONFIG_PATH = "/Users/selvino/e2e-recsys/configs/baseline_model.json"
+    MODEL_OUTPUT_DIR = "/Users/selvino/e2e-recsys/model-repository/mlp-model/1"
 
-trainer.train(2)
+    model = MultiLayerPerceptron.get_from_paths(CONFIG_PATH, VOCAB_PATH)
+
+    trainer = Trainer(
+        model,
+        VOCAB_PATH,
+        train_data_dir=TRAIN_DATA_DIR,
+        val_data_dir=VAL_DATA_DIR,
+        config_path=CONFIG_PATH,
+        model_output_dir=MODEL_OUTPUT_DIR,
+    )
+
+    trainer.train()

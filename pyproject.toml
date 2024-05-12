@@ -13,12 +13,15 @@ pandas = "^2.2.2"
 tqdm = "^4.66.2"
 tensorboard = "^2.16.2"
 torcheval = "^0.0.7"
+onnx = "^1.16.0"
 onnxscript = "^0.1.0.dev20240511"
 
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"
 pre-commit = "^3.7.0"
+tritonclient = { version = "*", extras = ["grpc"] }
+ipykernel = "^6.29.4"
 
 [build-system]
 requires = ["poetry-core"]

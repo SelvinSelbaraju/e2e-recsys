@@ -13,14 +13,21 @@ class AbstractTorchModel(ABC, torch.nn.Module):
         self,
         architecture_config: Dict[str, Any],
         vocab: Dict[str, Dict[str, int]],
+        target_col: str,
         numeric_feature_names: Set[str] = set([]),
         categorical_feature_names: Set[str] = set([]),
     ):
         super().__init__()
 
         self.architecture_config = architecture_config
+        self.target_col = target_col
         self.numeric_feature_names = sorted(numeric_feature_names)
         self.categorical_feature_names = sorted(categorical_feature_names)
+        # The order here must match the order in which features are accessed
+        # Eg If we iterate over all the numerical then all the categorical
+        self.all_features = (
+            self.numeric_feature_names + self.categorical_feature_names
+        )
 
         self.vocab = vocab
         # Get rid of the <DEFAULT_VALUE> key as not useful here
@@ -74,6 +81,13 @@ class AbstractTorchModel(ABC, torch.nn.Module):
             vocab_size = self.vocab_sizes[categorical_feature]
             input_size += vocab_size
         self.input_size = input_size
+
+    @classmethod
+    @abstractmethod
+    def get_from_paths(
+        cls, config_path: str, vocab_path: str
+    ) -> "AbstractTorchModel":
+        pass
 
     @abstractmethod
     def _init_layers(self) -> None:

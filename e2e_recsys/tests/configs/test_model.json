@@ -1,5 +1,6 @@
 {
     "features": {
+        "target_col": "target",
         "categorical": [
             "cat1",
             "cat2"
@@ -14,5 +15,21 @@
         "hidden_units": [4,2],
         "activation": "ReLU",
         "output_transform": "Sigmoid"
+    },
+    "hyperparam_config": {
+        "train_batch_size": 2,
+        "validation_batch_size": 2,
+        "shuffle": false,
+        "optimizer": {
+            "type": "SGD"
+        },
+        "loss_function": "BCELoss"
+    },
+    "training_config": {
+        "epochs": 2,
+        "metrics": {
+            "binary_accuracy": "acc",
+            "binary_auroc": "auc"
+        }
     }
 }

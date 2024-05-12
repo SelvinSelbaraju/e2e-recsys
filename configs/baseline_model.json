@@ -10,7 +10,8 @@
         "quantitative": [
             "price",
             "age"
-        ]
+        ],
+        "target_col": "p_purchased"
     },
     "architecture_config": {
         "hidden_units": [4,2],
@@ -18,8 +19,8 @@
         "output_transform": "Sigmoid"
     },
     "hyperparam_config": {
-        "train_batch_size": 1000,
-        "validation_batch_size": 1000,
+        "train_batch_size": 2,
+        "validation_batch_size": 2,
         "shuffle": false,
         "optimizer": {
             "type": "SGD"
@@ -27,6 +28,7 @@
         "loss_function": "BCELoss"
     },
     "training_config": {
+        "epochs": 2,
         "metrics": {
             "binary_accuracy": "acc",
             "binary_auroc": "auc"

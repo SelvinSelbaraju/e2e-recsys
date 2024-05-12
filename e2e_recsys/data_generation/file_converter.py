@@ -91,36 +91,37 @@ class FileConverter:
                     break
 
 
-train_fc = FileConverter(
-    columns=[
-        "product_type_name",
-        "product_group_name",
-        "colour_group_name",
-        "department_name",
-        "club_member_status",
-        "price",
-        "age",
-    ],
-    target_col="purchased",
-    input_filepath="/Users/selvino/e2e-recsys/data/train_data.csv",
-    output_dir="./converted_train_data",
-)
+if __name__ == "__main__":
+    train_fc = FileConverter(
+        columns=[
+            "product_type_name",
+            "product_group_name",
+            "colour_group_name",
+            "department_name",
+            "club_member_status",
+            "price",
+            "age",
+        ],
+        target_col="purchased",
+        input_filepath="/Users/selvino/e2e-recsys/data/train_data.csv",
+        output_dir="./converted_train_data",
+    )
 
-train_fc.convert_rows()
+    train_fc.convert_rows()
 
-val_fc = FileConverter(
-    columns=[
-        "product_type_name",
-        "product_group_name",
-        "colour_group_name",
-        "department_name",
-        "club_member_status",
-        "price",
-        "age",
-    ],
-    target_col="purchased",
-    input_filepath="/Users/selvino/e2e-recsys/data/val_data.csv",
-    output_dir="./converted_val_data",
-)
+    val_fc = FileConverter(
+        columns=[
+            "product_type_name",
+            "product_group_name",
+            "colour_group_name",
+            "department_name",
+            "club_member_status",
+            "price",
+            "age",
+        ],
+        target_col="purchased",
+        input_filepath="/Users/selvino/e2e-recsys/data/val_data.csv",
+        output_dir="./converted_val_data",
+    )
 
-val_fc.convert_rows()
+    val_fc.convert_rows()
